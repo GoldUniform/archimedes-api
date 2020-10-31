@@ -1,0 +1,130 @@
+service: archimedes-api
+
+custom:
+  pythonRequirements:
+    dockerizePip: true
+  pkgPyFuncs: # plugin configuration
+    buildDir: _build
+    requirementsFile: 'requirements.txt'
+    globalRequirements:
+      - ./requirements.txt
+    globalIncludes:
+      - ./common_files
+    cleanup: false
+
+plugins:
+  - serverless-python-requirements
+  - serverless-package-python-functions
+
+provider:
+  name: aws
+  runtime: python3.6
+  timeout: 120
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action: 
+        - sqs:*
+      Resource: 'arn:aws:sqs:us-east-1:*:*'
+    - Effect: Allow
+      Action: 
+        - dynamodb:*
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: 'arn:aws:dynamodb:us-east-1:*:*'
+    - Effect: "Allow"
+      Action:
+        - ssm:GetParameter
+      Resource:
+        Fn::Join:
+          - ''
+          -
+            - 'arn:aws:ssm:'
+            - Ref: AWS::Region
+            - ':'
+            - Ref: AWS::AccountId
+            - ':parameter/*'
+
+package:
+  individually: true
+
+functions:
+  optimize:
+    handler: handler.optimize
+    package:
+      include:
+        - optimize
+      artifact: ${self:custom.pkgPyFuncs.buildDir}/archimedes-api-${self:provider.stage}-optimize.zip
+    events:
+      - http:
+          path: optimize
+          method: post
+
+  strategize:
+    handler: handler.strategize
+    package:
+      include:
+        - strategize
+      artifact: ${self:custom.pkgPyFuncs.buildDir}/archimedes-api-${self:provider.stage}-strategize.zip
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - OptimizeQueue
+              - Arn
+
+  backtest:
+    handler: handler.backtest
+    package:
+      include:
+        - backtest
+      artifact: ${self:custom.pkgPyFuncs.buildDir}/archimedes-api-${self:provider.stage}-backtest.zip
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - BacktestQueue
+              - Arn
+
+resources:
+  Resources:
+    OptimizeQueue:
+      Type: "AWS::SQS::Queue"
+      Properties:
+        QueueName: "archimedes-optimize-${self:provider.stage}"
+        VisibilityTimeout: 150
+    BacktestQueue:
+      Type: "AWS::SQS::Queue"
+      Properties:
+        QueueName: "archimedes-backtest-${self:provider.stage}"
+        VisibilityTimeout: 150
+    Optimizations:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: archimedes-optimizations
+        AttributeDefinitions:
+          - AttributeName: guid
+            AttributeType: S
+        KeySchema:
+          - AttributeName: guid
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    Analysis:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: archimedes-analysis
+        AttributeDefinitions:
+          - AttributeName: guid
+            AttributeType: S
+        KeySchema:
+          - AttributeName: guid
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1

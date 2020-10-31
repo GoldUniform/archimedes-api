@@ -1,0 +1,18 @@
+{
+  "name": "archimedes-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "serverless-package-python-functions": "^0.7.0"
+  },
+  "devDependencies": {
+    "serverless-python-individually": "^0.1.9",
+    "serverless-python-requirements": "^5.1.0"
+  }
+}

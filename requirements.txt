@@ -1,0 +1,4 @@
+alpaca-backtrader-api==0.10.1
+alpaca-trade-api==0.50.1
+Backtesting==0.2.3
+pandas==1.1.2
